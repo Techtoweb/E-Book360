@@ -1,0 +1,28 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. App Settings (Branding/Logo, Payment Numbers, Coupons, Notification preferences)
+    // Public read so all visitors see the updated logo, payment numbers, and coupon discounts
+    match /app_settings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // 2. Orders Collection
+    // Public write so customers can checkout without forced login
+    // Public read so customers can check order status with their Order Number / TrxID
+    match /orders/{orderId} {
+      allow read, write: if true;
+    }
+
+    // 3. User Profiles
+    // Users can read and write their own profile data; Admin has full access
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'techtowebadmin@gmail.com');
+    }
+
+  }
+}
