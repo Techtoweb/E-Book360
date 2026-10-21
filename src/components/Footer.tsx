@@ -2,7 +2,7 @@ import React from 'react';
 import { BookOpen, ShieldCheck, Key, LogIn, UserPlus } from 'lucide-react';
 import { BOOK_DETAILS } from '../data/bookData';
 import { AuthModalMode, UserProfile } from '../types';
-import { techToWebLogo } from '../assets/images';
+import { dstypeLogo } from '../assets/images';
 
 interface FooterProps {
   onOpenCheckout: () => void;
@@ -32,8 +32,8 @@ export const Footer: React.FC<FooterProps> = ({
           <div className="md:col-span-5 space-y-4">
             <div className="flex items-center h-12 sm:h-14 max-w-[220px] sm:max-w-[280px] shrink-0 overflow-hidden">
               <img 
-                src={siteLogo || techToWebLogo} 
-                alt="Tech To Web" 
+                src={siteLogo || dstypeLogo} 
+                alt="DSTYPE" 
                 className="h-10 sm:h-12 max-h-10 sm:max-h-12 w-auto max-w-full object-contain object-left drop-shadow-md select-none"
                 referrerPolicy="no-referrer"
               />

@@ -613,8 +613,13 @@ export function subscribeToNotificationSettings(
  * Save site logo to Firestore
  */
 export async function saveSiteLogoToFirestore(logoUrl: string): Promise<void> {
+  if (!logoUrl) return;
+  // Instantly persist to local cache as immediate safety fallback
   try {
-    if (!logoUrl) return;
+    localStorage.setItem('ecom360_site_logo', logoUrl);
+  } catch {}
+
+  try {
     const docRef = doc(db, SETTINGS_COLLECTION, "branding");
     const cleaned = cleanFirestoreData({ siteLogo: logoUrl, updatedAt: new Date().toISOString() });
     await setDoc(docRef, cleaned, { merge: true });
@@ -626,6 +631,30 @@ export async function saveSiteLogoToFirestore(logoUrl: string): Promise<void> {
     }
     console.error("Error saving site logo to Firestore:", err);
     throw err;
+  }
+}
+
+/**
+ * Fetch site logo directly from Firestore on initial load
+ */
+export async function getSiteLogoFromFirestore(): Promise<string | null> {
+  try {
+    const docRef = doc(db, SETTINGS_COLLECTION, "branding");
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data?.siteLogo) {
+        setFirestorePermissionState(false);
+        return data.siteLogo;
+      }
+    }
+    return null;
+  } catch (err: any) {
+    if (err?.code === 'permission-denied') {
+      setFirestorePermissionState(true);
+    }
+    console.warn("Notice: Could not fetch site logo from Firestore on initial load:", err?.message || err);
+    return null;
   }
 }
 
@@ -661,3 +690,4 @@ export function subscribeToSiteLogo(
     return () => {};
   }
 }
+

@@ -19,7 +19,7 @@ import {
   testFirestoreAccess
 } from '../lib/firebase';
 import { playNewOrderSound, requestBrowserNotificationPermission, showOrderDesktopNotification } from '../lib/notificationSound';
-import { techToWebLogo } from '../assets/images';
+import { dstypeLogo } from '../assets/images';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -94,7 +94,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   );
 
   // Logo & Branding Settings State
-  const [currentLogo, setCurrentLogo] = useState<string>(siteLogo || techToWebLogo);
+  const [currentLogo, setCurrentLogo] = useState<string>(siteLogo || dstypeLogo);
   const [logoUrlInput, setLogoUrlInput] = useState<string>('');
   const [isProcessingLogo, setIsProcessingLogo] = useState(false);
   const [logoSaveNotice, setLogoSaveNotice] = useState(false);
@@ -237,6 +237,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       if (onUpdateSiteLogo) {
         onUpdateSiteLogo(currentLogo);
       }
+      try {
+        localStorage.setItem('ecom360_site_logo', currentLogo);
+      } catch {}
       await saveSiteLogoToFirestore(currentLogo);
       setLogoSaveNotice(true);
       setTimeout(() => setLogoSaveNotice(false), 3000);
@@ -251,13 +254,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleResetLogo = async () => {
     setIsProcessingLogo(true);
     try {
-      setCurrentLogo(techToWebLogo);
+      setCurrentLogo(dstypeLogo);
       setLogoUrlInput('');
       setUploadedDimensions(null);
       if (onUpdateSiteLogo) {
-        onUpdateSiteLogo(techToWebLogo);
+        onUpdateSiteLogo(dstypeLogo);
       }
-      await saveSiteLogoToFirestore(techToWebLogo);
+      try {
+        localStorage.setItem('ecom360_site_logo', dstypeLogo);
+      } catch {}
+      await saveSiteLogoToFirestore(dstypeLogo);
       setLogoSaveNotice(true);
       setTimeout(() => setLogoSaveNotice(false), 3000);
     } catch (err) {
@@ -1683,7 +1689,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     onClick={handleResetLogo}
                     disabled={isProcessingLogo}
                     className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
-                    title="আগের ডিফল্ট Tech To Web লোগো ফিরিয়ে আনুন"
+                    title="আগের ডিফল্ট DSTYPE লোগো ফিরিয়ে আনুন"
                   >
                     <RefreshCw className="w-4 h-4" />
                     <span>ডিফল্ট লোগো রিস্টোর</span>

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { BOOK_DETAILS } from '../data/bookData';
 import { UserProfile, AuthModalMode } from '../types';
-import { techToWebLogo } from '../assets/images';
+import { dstypeLogo } from '../assets/images';
 
 interface NavbarProps {
   currentUser: UserProfile | null;
@@ -73,11 +73,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div 
           className="flex items-center h-12 sm:h-14 max-w-[200px] sm:max-w-[280px] cursor-pointer shrink-0 overflow-hidden" 
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          title="Tech To Web"
+          title="DSTYPE"
         >
           <img 
-            src={siteLogo || techToWebLogo} 
-            alt="Tech To Web" 
+            src={siteLogo || dstypeLogo} 
+            alt="DSTYPE" 
             className="h-10 sm:h-12 max-h-10 sm:max-h-12 w-auto max-w-full object-contain object-left drop-shadow-md hover:scale-105 transition-transform duration-200"
             referrerPolicy="no-referrer"
           />

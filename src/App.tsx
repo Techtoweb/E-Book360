@@ -43,11 +43,12 @@ import {
   saveCouponsToFirestore,
   saveNotificationSettingsToFirestore,
   saveSiteLogoToFirestore,
+  getSiteLogoFromFirestore,
   subscribeToSiteLogo,
   subscribeToPermissionIssues
 } from './lib/firebase';
 import { playNewOrderSound, showOrderDesktopNotification } from './lib/notificationSound';
-import { techToWebLogo } from './assets/images';
+import { dstypeLogo } from './assets/images';
 
 export default function App() {
   // Modal states
@@ -113,9 +114,12 @@ export default function App() {
   const [siteLogo, setSiteLogo] = useState<string>(() => {
     try {
       const saved = localStorage.getItem('ecom360_site_logo');
-      return saved || techToWebLogo;
+      if (saved && !saved.includes('techToWeb') && !saved.includes('techtoweb')) {
+        return saved;
+      }
+      return dstypeLogo;
     } catch {
-      return techToWebLogo;
+      return dstypeLogo;
     }
   });
 
@@ -191,9 +195,18 @@ export default function App() {
       setCurrentUser(user);
     });
 
-    // 6. Subscribe to Site Logo from Firestore
+    // 6. Initial Fetch and Live Subscription to Site Logo from Firestore
+    getSiteLogoFromFirestore().then((initialLogo) => {
+      if (initialLogo && !initialLogo.includes('techToWeb') && !initialLogo.includes('techtoweb')) {
+        setSiteLogo(initialLogo);
+        try {
+          localStorage.setItem('ecom360_site_logo', initialLogo);
+        } catch {}
+      }
+    }).catch(() => {});
+
     const unsubscribeLogo = subscribeToSiteLogo((dbLogo) => {
-      if (dbLogo) {
+      if (dbLogo && !dbLogo.includes('techToWeb') && !dbLogo.includes('techtoweb')) {
         setSiteLogo(dbLogo);
         try {
           localStorage.setItem('ecom360_site_logo', dbLogo);
@@ -225,16 +238,16 @@ export default function App() {
       const interval = setInterval(() => {
         document.title = isAlt
           ? `(${pendingCount}) 🔔 নতুন অর্ডার এসেছে!`
-          : `Tech To Web - E-Commerce 360`;
+          : `DSTYPE - E-Commerce 360`;
         isAlt = !isAlt;
       }, 1500);
 
       return () => {
         clearInterval(interval);
-        document.title = 'Tech To Web - E-Commerce 360';
+        document.title = 'DSTYPE - E-Commerce 360';
       };
     } else {
-      document.title = 'Tech To Web - E-Commerce 360';
+      document.title = 'DSTYPE - E-Commerce 360';
     }
   }, [orders, notificationSettings.flashingTabTitle]);
 
@@ -347,13 +360,14 @@ export default function App() {
   };
 
   const handleAdminUpdateSiteLogo = (newLogo: string) => {
-    setSiteLogo(newLogo);
+    const finalLogo = newLogo || dstypeLogo;
+    setSiteLogo(finalLogo);
     try {
-      localStorage.setItem('ecom360_site_logo', newLogo);
+      localStorage.setItem('ecom360_site_logo', finalLogo);
     } catch (e) {
       console.warn('LocalStorage logo save error:', e);
     }
-    saveSiteLogoToFirestore(newLogo).catch((e) => console.warn('Logo firestore sync error:', e));
+    saveSiteLogoToFirestore(finalLogo).catch((e) => console.warn('Logo firestore sync error:', e));
   };
 
   const handleOpenReaderDirectly = (session: CustomerSession) => {
