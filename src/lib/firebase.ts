@@ -613,15 +613,18 @@ export function subscribeToNotificationSettings(
  * Save site logo to Firestore
  */
 export async function saveSiteLogoToFirestore(logoUrl: string): Promise<void> {
-  if (!logoUrl) return;
   // Instantly persist to local cache as immediate safety fallback
   try {
-    localStorage.setItem('ecom360_site_logo', logoUrl);
+    if (logoUrl) {
+      localStorage.setItem('ecom360_site_logo', logoUrl);
+    } else {
+      localStorage.removeItem('ecom360_site_logo');
+    }
   } catch {}
 
   try {
     const docRef = doc(db, SETTINGS_COLLECTION, "branding");
-    const cleaned = cleanFirestoreData({ siteLogo: logoUrl, updatedAt: new Date().toISOString() });
+    const cleaned = cleanFirestoreData({ siteLogo: logoUrl || "", updatedAt: new Date().toISOString() });
     await setDoc(docRef, cleaned, { merge: true });
     setFirestorePermissionState(false);
     console.log("Site logo saved to Firestore successfully");

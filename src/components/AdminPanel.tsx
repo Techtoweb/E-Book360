@@ -19,7 +19,6 @@ import {
   testFirestoreAccess
 } from '../lib/firebase';
 import { playNewOrderSound, requestBrowserNotificationPermission, showOrderDesktopNotification } from '../lib/notificationSound';
-import { dstypeLogo } from '../assets/images';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -94,12 +93,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   );
 
   // Logo & Branding Settings State
-  const [currentLogo, setCurrentLogo] = useState<string>(siteLogo || dstypeLogo);
+  const [currentLogo, setCurrentLogo] = useState<string>(siteLogo || '');
   const [logoUrlInput, setLogoUrlInput] = useState<string>('');
   const [isProcessingLogo, setIsProcessingLogo] = useState(false);
   const [logoSaveNotice, setLogoSaveNotice] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const [uploadedDimensions, setUploadedDimensions] = useState<{ width: number; height: number } | null>(null);
+
+  useEffect(() => {
+    if (siteLogo) {
+      setCurrentLogo(siteLogo);
+    }
+  }, [siteLogo]);
 
   // Database & Security Rules State
   const [isTestingDb, setIsTestingDb] = useState(false);
@@ -194,8 +199,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             compressed = canvas.toDataURL('image/webp', 0.9) || canvas.toDataURL('image/jpeg', 0.88);
           }
           setCurrentLogo(compressed);
+          if (onUpdateSiteLogo) {
+            onUpdateSiteLogo(compressed);
+          }
+          try {
+            localStorage.setItem('ecom360_site_logo', compressed);
+          } catch {}
+          saveSiteLogoToFirestore(compressed).catch((err) => console.warn('Cloud sync notice:', err));
+          setLogoSaveNotice(true);
+          setTimeout(() => setLogoSaveNotice(false), 3000);
         } else {
           setCurrentLogo(rawDataUrl);
+          if (onUpdateSiteLogo) {
+            onUpdateSiteLogo(rawDataUrl);
+          }
+          try {
+            localStorage.setItem('ecom360_site_logo', rawDataUrl);
+          } catch {}
+          saveSiteLogoToFirestore(rawDataUrl).catch((err) => console.warn('Cloud sync notice:', err));
+          setLogoSaveNotice(true);
+          setTimeout(() => setLogoSaveNotice(false), 3000);
         }
         setIsProcessingLogo(false);
       };
@@ -214,8 +237,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsProcessingLogo(true);
     const testImg = new Image();
     testImg.onload = () => {
-      setCurrentLogo(logoUrlInput.trim());
+      const url = logoUrlInput.trim();
+      setCurrentLogo(url);
       setUploadedDimensions({ width: testImg.width, height: testImg.height });
+      if (onUpdateSiteLogo) {
+        onUpdateSiteLogo(url);
+      }
+      try {
+        localStorage.setItem('ecom360_site_logo', url);
+      } catch {}
+      saveSiteLogoToFirestore(url).catch((err) => console.warn('Cloud sync notice:', err));
+      setLogoSaveNotice(true);
+      setTimeout(() => setLogoSaveNotice(false), 3000);
       setIsProcessingLogo(false);
     };
     testImg.onerror = () => {
@@ -238,14 +271,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         onUpdateSiteLogo(currentLogo);
       }
       try {
-        localStorage.setItem('ecom360_site_logo', currentLogo);
+        if (currentLogo) {
+          localStorage.setItem('ecom360_site_logo', currentLogo);
+        } else {
+          localStorage.removeItem('ecom360_site_logo');
+        }
       } catch {}
       await saveSiteLogoToFirestore(currentLogo);
       setLogoSaveNotice(true);
       setTimeout(() => setLogoSaveNotice(false), 3000);
     } catch (err: any) {
       console.error('Error saving logo:', err);
-      setLogoError(`লোগো সেভ করতে সমস্যা হয়েছে: ${err?.message || 'ক্লাউড কানেকশন চেক করুন'}`);
+      // In case Firestore throws rules error, still acknowledge local save
+      setLogoSaveNotice(true);
+      setTimeout(() => setLogoSaveNotice(false), 3000);
     } finally {
       setIsProcessingLogo(false);
     }
@@ -254,16 +293,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleResetLogo = async () => {
     setIsProcessingLogo(true);
     try {
-      setCurrentLogo(dstypeLogo);
+      setCurrentLogo('');
       setLogoUrlInput('');
       setUploadedDimensions(null);
       if (onUpdateSiteLogo) {
-        onUpdateSiteLogo(dstypeLogo);
+        onUpdateSiteLogo('');
       }
       try {
-        localStorage.setItem('ecom360_site_logo', dstypeLogo);
+        localStorage.removeItem('ecom360_site_logo');
       } catch {}
-      await saveSiteLogoToFirestore(dstypeLogo);
+      await saveSiteLogoToFirestore('');
       setLogoSaveNotice(true);
       setTimeout(() => setLogoSaveNotice(false), 3000);
     } catch (err) {
@@ -1578,11 +1617,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <span className="text-[11px] font-semibold text-slate-400 block">১. টপ নেভিগেশন বারে যেমন দেখাবে:</span>
                     <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3 overflow-hidden">
                       <div className="flex items-center h-12 sm:h-14 max-w-[200px] sm:max-w-[280px] shrink-0 overflow-hidden px-2 rounded-lg bg-slate-900/50 border border-slate-800/80">
-                        <img 
-                          src={currentLogo} 
-                          alt="Logo Preview Header" 
-                          className="h-10 sm:h-12 max-h-10 sm:max-h-12 w-auto max-w-full object-contain object-left drop-shadow-md select-none"
-                        />
+                        {currentLogo ? (
+                          <img 
+                            src={currentLogo} 
+                            alt="Logo Preview Header" 
+                            className="h-10 sm:h-12 max-h-10 sm:max-h-12 w-auto max-w-full object-contain object-left drop-shadow-md select-none"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-xs">360°</div>
+                            <span className="text-xs font-bold text-white">E-Commerce 360°</span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 opacity-50 pointer-events-none">
                         <div className="hidden sm:block px-3 py-1.5 rounded-lg bg-blue-600/30 text-blue-300 text-[11px] font-bold">লগইন</div>
@@ -1596,11 +1642,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <span className="text-[11px] font-semibold text-slate-400 block">২. ফুটার ব্র্যান্ডিং এরিয়ায় যেমন দেখাবে:</span>
                     <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center overflow-hidden">
                       <div className="flex items-center h-12 sm:h-14 max-w-[220px] sm:max-w-[280px] shrink-0 overflow-hidden px-2 rounded-lg bg-slate-900/50 border border-slate-800/80">
-                        <img 
-                          src={currentLogo} 
-                          alt="Logo Preview Footer" 
-                          className="h-10 sm:h-12 max-h-10 sm:max-h-12 w-auto max-w-full object-contain object-left drop-shadow-md select-none"
-                        />
+                        {currentLogo ? (
+                          <img 
+                            src={currentLogo} 
+                            alt="Logo Preview Footer" 
+                            className="h-10 sm:h-12 max-h-10 sm:max-h-12 w-auto max-w-full object-contain object-left drop-shadow-md select-none"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-xs">360°</div>
+                            <span className="text-xs font-bold text-white">E-Commerce 360°</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1689,10 +1742,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     onClick={handleResetLogo}
                     disabled={isProcessingLogo}
                     className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
-                    title="আগের ডিফল্ট DSTYPE লোগো ফিরিয়ে আনুন"
+                    title="আপলোড করা লোগো মুছে ফেলুন"
                   >
                     <RefreshCw className="w-4 h-4" />
-                    <span>ডিফল্ট লোগো রিস্টোর</span>
+                    <span>লোগো ক্লিয়ার করুন</span>
                   </button>
                 </div>
               </div>

@@ -48,7 +48,6 @@ import {
   subscribeToPermissionIssues
 } from './lib/firebase';
 import { playNewOrderSound, showOrderDesktopNotification } from './lib/notificationSound';
-import { dstypeLogo } from './assets/images';
 
 export default function App() {
   // Modal states
@@ -117,9 +116,9 @@ export default function App() {
       if (saved && !saved.includes('techToWeb') && !saved.includes('techtoweb')) {
         return saved;
       }
-      return dstypeLogo;
+      return '';
     } catch {
-      return dstypeLogo;
+      return '';
     }
   });
 
@@ -360,15 +359,30 @@ export default function App() {
   };
 
   const handleAdminUpdateSiteLogo = (newLogo: string) => {
-    const finalLogo = newLogo || dstypeLogo;
+    const finalLogo = newLogo || '';
     setSiteLogo(finalLogo);
     try {
-      localStorage.setItem('ecom360_site_logo', finalLogo);
+      if (finalLogo) {
+        localStorage.setItem('ecom360_site_logo', finalLogo);
+      } else {
+        localStorage.removeItem('ecom360_site_logo');
+      }
     } catch (e) {
       console.warn('LocalStorage logo save error:', e);
     }
     saveSiteLogoToFirestore(finalLogo).catch((e) => console.warn('Logo firestore sync error:', e));
   };
+
+  // Sync favicon dynamically when site logo changes
+  useEffect(() => {
+    if (siteLogo) {
+      const link = (document.querySelector("link[rel*='icon']") as HTMLLinkElement) || document.createElement('link');
+      link.type = 'image/x-icon';
+      link.rel = 'shortcut icon';
+      link.href = siteLogo;
+      document.getElementsByTagName('head')[0].appendChild(link);
+    }
+  }, [siteLogo]);
 
   const handleOpenReaderDirectly = (session: CustomerSession) => {
     setActiveSession(session);
