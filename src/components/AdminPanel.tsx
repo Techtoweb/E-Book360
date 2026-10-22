@@ -281,7 +281,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setLogoSaveNotice(true);
       setTimeout(() => setLogoSaveNotice(false), 3000);
     } catch (err: any) {
-      console.error('Error saving logo:', err);
+      console.warn('Notice saving logo:', err?.message || err);
       // In case Firestore throws rules error, still acknowledge local save
       setLogoSaveNotice(true);
       setTimeout(() => setLogoSaveNotice(false), 3000);
@@ -305,8 +305,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       await saveSiteLogoToFirestore('');
       setLogoSaveNotice(true);
       setTimeout(() => setLogoSaveNotice(false), 3000);
-    } catch (err) {
-      console.error('Error resetting logo:', err);
+    } catch (err: any) {
+      console.warn('Notice resetting logo:', err?.message || err);
     } finally {
       setIsProcessingLogo(false);
     }

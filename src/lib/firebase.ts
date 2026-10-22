@@ -350,8 +350,10 @@ export async function deleteOrderFromFirestore(orderId: string): Promise<void> {
   } catch (error: any) {
     if (error?.code === 'permission-denied') {
       setFirestorePermissionState(true);
+      console.warn("Firestore rules notice: Missing or insufficient permissions to delete order.");
+      return;
     }
-    console.error("Error deleting order from Firestore:", error);
+    console.warn("Error deleting order from Firestore:", error);
   }
 }
 
@@ -385,8 +387,10 @@ export async function deleteAllOrdersFromFirestore(orderIds?: string[]): Promise
   } catch (error: any) {
     if (error?.code === 'permission-denied') {
       setFirestorePermissionState(true);
+      console.warn("Firestore rules notice: Missing or insufficient permissions to clear orders.");
+      return;
     }
-    console.error("Error clearing orders from Firestore:", error);
+    console.warn("Error clearing orders from Firestore:", error);
   }
 }
 
@@ -465,8 +469,10 @@ export async function savePaymentConfigsToFirestore(configs: PaymentConfig[]): P
   } catch (err: any) {
     if (err?.code === 'permission-denied') {
       setFirestorePermissionState(true);
+      console.warn("Firestore rules notice: Could not save payment configs to cloud.");
+      return;
     }
-    console.error("Error saving payment configs to Firestore:", err);
+    console.warn("Error saving payment configs to Firestore:", err);
   }
 }
 
@@ -515,8 +521,10 @@ export async function saveCouponsToFirestore(coupons: Coupon[]): Promise<void> {
   } catch (err: any) {
     if (err?.code === 'permission-denied') {
       setFirestorePermissionState(true);
+      console.warn("Firestore rules notice: Could not save coupons to cloud.");
+      return;
     }
-    console.error("Error saving coupons to Firestore:", err);
+    console.warn("Error saving coupons to Firestore:", err);
   }
 }
 
@@ -565,8 +573,10 @@ export async function saveNotificationSettingsToFirestore(settings: Notification
   } catch (err: any) {
     if (err?.code === 'permission-denied') {
       setFirestorePermissionState(true);
+      console.warn("Firestore rules notice: Could not save notification settings to cloud.");
+      return;
     }
-    console.error("Error saving notification settings to Firestore:", err);
+    console.warn("Error saving notification settings to Firestore:", err);
   }
 }
 
@@ -631,9 +641,10 @@ export async function saveSiteLogoToFirestore(logoUrl: string): Promise<void> {
   } catch (err: any) {
     if (err?.code === 'permission-denied') {
       setFirestorePermissionState(true);
+      console.warn("Notice: Firestore security rules restricted cloud logo sync. Saved locally in browser cache.");
+      return;
     }
-    console.error("Error saving site logo to Firestore:", err);
-    throw err;
+    console.warn("Notice saving site logo to Firestore:", err?.message || err);
   }
 }
 
