@@ -205,6 +205,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           try {
             localStorage.setItem('ecom360_site_logo', compressed);
           } catch {}
+          fetch('/api/save-logo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ siteLogo: compressed }),
+          }).catch((err) => console.warn('API save-logo notice:', err));
           saveSiteLogoToFirestore(compressed).catch((err) => console.warn('Cloud sync notice:', err));
           setLogoSaveNotice(true);
           setTimeout(() => setLogoSaveNotice(false), 3000);
@@ -216,6 +221,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           try {
             localStorage.setItem('ecom360_site_logo', rawDataUrl);
           } catch {}
+          fetch('/api/save-logo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ siteLogo: rawDataUrl }),
+          }).catch((err) => console.warn('API save-logo notice:', err));
           saveSiteLogoToFirestore(rawDataUrl).catch((err) => console.warn('Cloud sync notice:', err));
           setLogoSaveNotice(true);
           setTimeout(() => setLogoSaveNotice(false), 3000);
@@ -246,6 +256,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       try {
         localStorage.setItem('ecom360_site_logo', url);
       } catch {}
+      fetch('/api/save-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteLogo: url }),
+      }).catch((err) => console.warn('API save-logo notice:', err));
       saveSiteLogoToFirestore(url).catch((err) => console.warn('Cloud sync notice:', err));
       setLogoSaveNotice(true);
       setTimeout(() => setLogoSaveNotice(false), 3000);
@@ -277,12 +292,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           localStorage.removeItem('ecom360_site_logo');
         }
       } catch {}
+
+      // Persist to backend server & project files
+      fetch('/api/save-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteLogo: currentLogo }),
+      }).catch((e) => console.warn('API save-logo notice:', e));
+
       await saveSiteLogoToFirestore(currentLogo);
       setLogoSaveNotice(true);
       setTimeout(() => setLogoSaveNotice(false), 3000);
     } catch (err: any) {
       console.warn('Notice saving logo:', err?.message || err);
-      // In case Firestore throws rules error, still acknowledge local save
       setLogoSaveNotice(true);
       setTimeout(() => setLogoSaveNotice(false), 3000);
     } finally {
@@ -302,6 +324,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       try {
         localStorage.removeItem('ecom360_site_logo');
       } catch {}
+      fetch('/api/save-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteLogo: '' }),
+      }).catch((e) => console.warn('API save-logo notice:', e));
       await saveSiteLogoToFirestore('');
       setLogoSaveNotice(true);
       setTimeout(() => setLogoSaveNotice(false), 3000);

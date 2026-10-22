@@ -48,6 +48,7 @@ import {
   subscribeToPermissionIssues
 } from './lib/firebase';
 import { playNewOrderSound, showOrderDesktopNotification } from './lib/notificationSound';
+import { defaultSiteLogo } from './assets/siteLogo';
 
 export default function App() {
   // Modal states
@@ -116,10 +117,8 @@ export default function App() {
       if (saved && !saved.includes('techToWeb') && !saved.includes('techtoweb')) {
         return saved;
       }
-      return '';
-    } catch {
-      return '';
-    }
+    } catch {}
+    return defaultSiteLogo || '';
   });
 
   const [customPdfInfo, setCustomPdfInfo] = useState<{ name: string; dataUrl: string } | null>(() => {
@@ -194,7 +193,19 @@ export default function App() {
       setCurrentUser(user);
     });
 
-    // 6. Initial Fetch and Live Subscription to Site Logo from Firestore
+    // 6. Fetch from backend API & Firestore
+    fetch('/api/site-logo')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.siteLogo && !data.siteLogo.includes('techToWeb') && !data.siteLogo.includes('techtoweb')) {
+          setSiteLogo(data.siteLogo);
+          try {
+            localStorage.setItem('ecom360_site_logo', data.siteLogo);
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
     getSiteLogoFromFirestore().then((initialLogo) => {
       if (initialLogo && !initialLogo.includes('techToWeb') && !initialLogo.includes('techtoweb')) {
         setSiteLogo(initialLogo);
@@ -370,7 +381,14 @@ export default function App() {
     } catch (e) {
       console.warn('LocalStorage logo save error:', e);
     }
-    saveSiteLogoToFirestore(finalLogo).catch((e) => console.warn('Logo firestore sync error:', e));
+    // Persist to backend server & project files
+    fetch('/api/save-logo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteLogo: finalLogo }),
+    }).catch((e) => console.warn('API save-logo notice:', e));
+
+    saveSiteLogoToFirestore(finalLogo).catch((e) => console.warn('Logo firestore sync notice:', e));
   };
 
   // Sync favicon dynamically when site logo changes
