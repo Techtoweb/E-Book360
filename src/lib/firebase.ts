@@ -24,6 +24,14 @@ import {
   onAuthStateChanged,
   User
 } from "firebase/auth";
+import { 
+  getStorage, 
+  ref, 
+  uploadBytes, 
+  uploadString, 
+  getDownloadURL, 
+  deleteObject 
+} from "firebase/storage";
 import { getAnalytics, isSupported } from "firebase/analytics";
 import { Order, PaymentConfig, Coupon, UserProfile, NotificationSettings } from "../types";
 
@@ -41,6 +49,7 @@ export const firebaseConfig = {
 export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Analytics support
@@ -146,6 +155,31 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if true;
       allow write: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'techtowebadmin@gmail.com');
+    }
+
+  }
+}`;
+
+export const STORAGE_RULES_GUIDE = `rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // 1. Branding / Logo folder
+    // Public read so all visitors across website & Cloudflare see active logo
+    // Write permitted for authenticated admin
+    match /branding/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && (
+        request.auth.token.email == 'techtowebadmin@gmail.com' ||
+        request.auth.token.admin == true
+      );
+    }
+
+    // 2. Default allow admin
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'techtowebadmin@gmail.com';
     }
 
   }
@@ -619,10 +653,97 @@ export function subscribeToNotificationSettings(
   }
 }
 
+// ----------------------------------------------------
+// Website Branding, Logo & Storage Management
+// ----------------------------------------------------
+
+export interface SiteBrandingMetadata {
+  siteLogo: string;
+  storagePath?: string;
+  updatedAt: string;
+  updatedBy?: string;
+  fileName?: string;
+  fileSize?: number;
+  contentType?: string;
+}
+
 /**
- * Save site logo to Firestore
+ * Upload image file (PNG, JPG, WebP, SVG) directly to Firebase Storage
+ * bucket: e-book-a0a34.firebasestorage.app
+ * Path: branding/site_logo_<timestamp>.<ext>
  */
-export async function saveSiteLogoToFirestore(logoUrl: string): Promise<void> {
+export async function uploadLogoToFirebaseStorage(
+  fileOrBlob: File | Blob,
+  customName?: string
+): Promise<{ downloadUrl: string; storagePath: string }> {
+  const mimeType = fileOrBlob.type || 'image/png';
+  const extension = mimeType.includes('png') ? 'png' 
+    : mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg'
+    : mimeType.includes('webp') ? 'webp'
+    : mimeType.includes('svg') ? 'svg'
+    : 'png';
+
+  const timestamp = Date.now();
+  const storagePath = `branding/site_logo_${timestamp}.${extension}`;
+  const storageRef = ref(storage, storagePath);
+
+  const metadata = {
+    contentType: mimeType,
+    cacheControl: 'public, max-age=31536000',
+    customMetadata: {
+      uploadedAt: new Date().toISOString(),
+      appName: 'E-Commerce 360',
+      fileName: customName || (fileOrBlob instanceof File ? fileOrBlob.name : `logo_${timestamp}.${extension}`),
+    }
+  };
+
+  // Upload binary bytes directly to Firebase Storage
+  const snapshot = await uploadBytes(storageRef, fileOrBlob, metadata);
+  const downloadUrl = await getDownloadURL(snapshot.ref);
+
+  return { downloadUrl, storagePath };
+}
+
+/**
+ * Upload base64 or Data URL to Firebase Storage
+ */
+export async function uploadLogoDataUrlToFirebaseStorage(
+  dataUrl: string
+): Promise<{ downloadUrl: string; storagePath: string }> {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  const mimeType = match ? match[1] : 'image/png';
+  const extension = mimeType.includes('png') ? 'png' 
+    : mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg'
+    : mimeType.includes('webp') ? 'webp'
+    : mimeType.includes('svg') ? 'svg'
+    : 'png';
+
+  const timestamp = Date.now();
+  const storagePath = `branding/site_logo_${timestamp}.${extension}`;
+  const storageRef = ref(storage, storagePath);
+
+  await uploadString(storageRef, dataUrl, 'data_url', {
+    contentType: mimeType,
+    cacheControl: 'public, max-age=31536000',
+  });
+
+  const downloadUrl = await getDownloadURL(storageRef);
+  return { downloadUrl, storagePath };
+}
+
+/**
+ * Save site logo and metadata to Firestore app_settings/branding
+ */
+export async function saveSiteLogoToFirestore(
+  logoUrl: string,
+  extraMetadata?: {
+    storagePath?: string;
+    updatedBy?: string;
+    fileName?: string;
+    fileSize?: number;
+    contentType?: string;
+  }
+): Promise<void> {
   // Instantly persist to local cache as immediate safety fallback
   try {
     if (logoUrl) {
@@ -634,7 +755,16 @@ export async function saveSiteLogoToFirestore(logoUrl: string): Promise<void> {
 
   try {
     const docRef = doc(db, SETTINGS_COLLECTION, "branding");
-    const cleaned = cleanFirestoreData({ siteLogo: logoUrl || "", updatedAt: new Date().toISOString() });
+    const payload: Partial<SiteBrandingMetadata> = {
+      siteLogo: logoUrl || "",
+      storagePath: extraMetadata?.storagePath || "",
+      updatedBy: extraMetadata?.updatedBy || "techtowebadmin@gmail.com",
+      fileName: extraMetadata?.fileName,
+      fileSize: extraMetadata?.fileSize,
+      contentType: extraMetadata?.contentType,
+      updatedAt: new Date().toISOString()
+    };
+    const cleaned = cleanFirestoreData(payload);
     await setDoc(docRef, cleaned, { merge: true });
     setFirestorePermissionState(false);
     console.log("Site logo saved to Firestore successfully");
@@ -642,9 +772,10 @@ export async function saveSiteLogoToFirestore(logoUrl: string): Promise<void> {
     if (err?.code === 'permission-denied') {
       setFirestorePermissionState(true);
       console.warn("Notice: Firestore security rules restricted cloud logo sync. Saved locally in browser cache.");
-      return;
+      throw err;
     }
     console.warn("Notice saving site logo to Firestore:", err?.message || err);
+    throw err;
   }
 }
 
@@ -673,10 +804,10 @@ export async function getSiteLogoFromFirestore(): Promise<string | null> {
 }
 
 /**
- * Subscribe to site logo in Firestore
+ * Subscribe to site logo in Firestore in real-time
  */
 export function subscribeToSiteLogo(
-  onSuccess: (logoUrl: string) => void,
+  onSuccess: (logoUrl: string, metadata?: SiteBrandingMetadata) => void,
   onError?: (err: any) => void
 ): () => void {
   try {
@@ -687,9 +818,10 @@ export function subscribeToSiteLogo(
         setFirestorePermissionState(false);
         if (docSnap.exists()) {
           const data = docSnap.data();
-          if (data?.siteLogo) {
-            onSuccess(data.siteLogo);
-          }
+          const logo = data?.siteLogo || "";
+          onSuccess(logo, data as SiteBrandingMetadata);
+        } else {
+          onSuccess("");
         }
       },
       (error) => {
@@ -702,6 +834,28 @@ export function subscribeToSiteLogo(
   } catch (err) {
     if (onError) onError(err);
     return () => {};
+  }
+}
+
+/**
+ * Update the dynamic browser favicon reactively
+ */
+export function updateBrowserFavicon(logoUrl: string) {
+  if (typeof document === 'undefined') return;
+  try {
+    let link = document.querySelector<HTMLLinkElement>("link[rel*='icon']");
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.getElementsByTagName('head')[0].appendChild(link);
+    }
+    if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('data:image/'))) {
+      link.href = logoUrl;
+    } else {
+      link.href = '/favicon.ico';
+    }
+  } catch (e) {
+    console.warn("Favicon update notice:", e);
   }
 }
 

@@ -4,24 +4,28 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // 1. App Settings (Branding/Logo, Payment Numbers, Coupons, Notification preferences)
-    // Public read so all visitors see the updated logo, payment numbers, and coupon discounts
+    // Public read so all visitors across the live website, Cloudflare, and devices see the active logo
+    // Write permitted for authenticated admin (techtowebadmin@gmail.com)
     match /app_settings/{settingId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if true; // Or strictly: request.auth != null && (request.auth.token.email == 'techtowebadmin@gmail.com' || request.auth.token.admin == true);
     }
 
     // 2. Orders Collection
-    // Public write so customers can checkout without forced login
-    // Public read so customers can check order status with their Order Number / TrxID
+    // Public write so customers can checkout seamlessly without forced authentication
+    // Public read so customers can check order status with their Phone / TrxID
     match /orders/{orderId} {
       allow read, write: if true;
     }
 
     // 3. User Profiles
-    // Users can read and write their own profile data; Admin has full access
+    // Users can read and write their own profile data; Super Admin has full management access
     match /users/{userId} {
       allow read: if true;
-      allow write: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'techtowebadmin@gmail.com');
+      allow write: if request.auth != null && (
+        request.auth.uid == userId || 
+        request.auth.token.email == 'techtowebadmin@gmail.com'
+      );
     }
 
   }

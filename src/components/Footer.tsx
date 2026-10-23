@@ -2,6 +2,7 @@ import React from 'react';
 import { BookOpen, ShieldCheck, Key, LogIn, UserPlus } from 'lucide-react';
 import { BOOK_DETAILS } from '../data/bookData';
 import { AuthModalMode, UserProfile } from '../types';
+import { SiteLogo } from './SiteLogo';
 
 interface FooterProps {
   onOpenCheckout: () => void;
@@ -29,30 +30,11 @@ export const Footer: React.FC<FooterProps> = ({
           
           {/* Brand Info */}
           <div className="md:col-span-5 space-y-4">
-            <div className="flex items-center h-12 sm:h-14 max-w-[220px] sm:max-w-[280px] shrink-0 overflow-hidden">
-              {siteLogo ? (
-                <img 
-                  src={siteLogo} 
-                  alt="Website Logo" 
-                  className="h-10 sm:h-12 max-h-10 sm:max-h-12 w-auto max-w-full object-contain object-left drop-shadow-md select-none"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className="flex items-center gap-2 select-none">
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center text-white font-black text-sm sm:text-base shadow-lg shadow-blue-500/25">
-                    360°
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-black text-white text-sm sm:text-base tracking-tight leading-tight">
-                      E-Commerce 360°
-                    </span>
-                    <span className="text-[9px] sm:text-[10px] text-blue-400 font-semibold tracking-wider uppercase">
-                      Official Store
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
+            <SiteLogo 
+              siteLogo={siteLogo}
+              variant="footer"
+              containerClassName="h-12 sm:h-14 max-w-[220px] sm:max-w-[280px] overflow-hidden"
+            />
 
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
               {BOOK_DETAILS.title} — {BOOK_DETAILS.subtitleBn}। এই বইটি লেখক এস. এম. রায়হানের দীর্ঘ ৭+ বছরের বাস্তব অভিজ্ঞতার নির্যাস।

@@ -14,10 +14,14 @@ import {
   deleteAllOrdersFromFirestore, 
   saveNotificationSettingsToFirestore, 
   saveSiteLogoToFirestore,
+  uploadLogoToFirebaseStorage,
+  uploadLogoDataUrlToFirebaseStorage,
   FIRESTORE_RULES_GUIDE,
+  STORAGE_RULES_GUIDE,
   firebaseConfig,
   testFirestoreAccess
 } from '../lib/firebase';
+import { SiteLogo } from './SiteLogo';
 import { playNewOrderSound, requestBrowserNotificationPermission, showOrderDesktopNotification } from '../lib/notificationSound';
 
 interface AdminPanelProps {
@@ -134,7 +138,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   }, [siteLogo]);
 
-  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -147,61 +151,92 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const rawDataUrl = event.target?.result as string;
-      if (!rawDataUrl) {
-        setIsProcessingLogo(false);
-        return;
+    try {
+      // 1. Direct Upload to Firebase Storage bucket (e-book-a0a34.firebasestorage.app)
+      const { downloadUrl, storagePath } = await uploadLogoToFirebaseStorage(file, file.name);
+
+      // 2. Save public download URL & file metadata to Firestore app_settings/branding
+      await saveSiteLogoToFirestore(downloadUrl, {
+        storagePath,
+        fileName: file.name,
+        fileSize: file.size,
+        contentType: file.type,
+        updatedBy: currentUser?.email || ADMIN_EMAIL,
+      });
+
+      // 3. Update local state & active logo across all UI components
+      setCurrentLogo(downloadUrl);
+      if (onUpdateSiteLogo) {
+        onUpdateSiteLogo(downloadUrl);
       }
 
-      // If SVG vector, verify reasonable size and preserve
-      if (file.type.includes('svg')) {
-        if (rawDataUrl.length > 500000) {
-          setLogoError('SVG ফাইলের সাইজ অনেক বড়। ৫০০KB এর নিচের ফাইল আপলোড করুন।');
+      // 4. Update local cache and local server backup
+      try {
+        localStorage.setItem('ecom360_site_logo', downloadUrl);
+      } catch {}
+      fetch('/api/save-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteLogo: downloadUrl }),
+      }).catch(() => {});
+
+      setLogoSaveNotice(true);
+      setTimeout(() => setLogoSaveNotice(false), 4000);
+      setIsProcessingLogo(false);
+    } catch (storageErr: any) {
+      console.warn('Firebase Storage direct upload notice:', storageErr?.message || storageErr);
+      
+      // Fallback: If Firebase Storage is unreachable or rules restricted, scale image & store
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const rawDataUrl = event.target?.result as string;
+        if (!rawDataUrl) {
           setIsProcessingLogo(false);
           return;
         }
-        setCurrentLogo(rawDataUrl);
-        setUploadedDimensions({ width: 300, height: 80 });
-        setIsProcessingLogo(false);
-        return;
-      }
 
-      // For raster images (PNG, JPG, WebP), scale & compress via canvas so it fits perfectly in Firestore
-      const img = new Image();
-      img.onload = () => {
-        setUploadedDimensions({ width: img.width, height: img.height });
-
-        const MAX_W = 600;
-        const MAX_H = 180;
-        let targetWidth = img.width;
-        let targetHeight = img.height;
-
-        if (targetWidth > MAX_W || targetHeight > MAX_H) {
-          const ratio = Math.min(MAX_W / targetWidth, MAX_H / targetHeight);
-          targetWidth = Math.round(targetWidth * ratio);
-          targetHeight = Math.round(targetHeight * ratio);
+        if (file.type.includes('svg')) {
+          setCurrentLogo(rawDataUrl);
+          setUploadedDimensions({ width: 300, height: 80 });
+          if (onUpdateSiteLogo) onUpdateSiteLogo(rawDataUrl);
+          saveSiteLogoToFirestore(rawDataUrl, {
+            fileName: file.name,
+            fileSize: file.size,
+            contentType: file.type,
+            updatedBy: currentUser?.email || ADMIN_EMAIL,
+          }).catch(() => {});
+          setIsProcessingLogo(false);
+          return;
         }
 
-        const canvas = document.createElement('canvas');
-        canvas.width = targetWidth;
-        canvas.height = targetHeight;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-
-          // Use PNG to preserve transparency, but fallback to WebP/JPEG if PNG is unexpectedly large
-          let compressed = canvas.toDataURL('image/png');
-          if (compressed.length > 400000) {
-            compressed = canvas.toDataURL('image/webp', 0.9) || canvas.toDataURL('image/jpeg', 0.88);
+        const img = new Image();
+        img.onload = () => {
+          setUploadedDimensions({ width: img.width, height: img.height });
+          const MAX_W = 600;
+          const MAX_H = 180;
+          let targetWidth = img.width;
+          let targetHeight = img.height;
+          if (targetWidth > MAX_W || targetHeight > MAX_H) {
+            const ratio = Math.min(MAX_W / targetWidth, MAX_H / targetHeight);
+            targetWidth = Math.round(targetWidth * ratio);
+            targetHeight = Math.round(targetHeight * ratio);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+          const ctx = canvas.getContext('2d');
+          let compressed = rawDataUrl;
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+            compressed = canvas.toDataURL('image/png');
+            if (compressed.length > 400000) {
+              compressed = canvas.toDataURL('image/webp', 0.9) || canvas.toDataURL('image/jpeg', 0.88);
+            }
           }
           setCurrentLogo(compressed);
-          if (onUpdateSiteLogo) {
-            onUpdateSiteLogo(compressed);
-          }
+          if (onUpdateSiteLogo) onUpdateSiteLogo(compressed);
           try {
             localStorage.setItem('ecom360_site_logo', compressed);
           } catch {}
@@ -209,36 +244,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ siteLogo: compressed }),
-          }).catch((err) => console.warn('API save-logo notice:', err));
-          saveSiteLogoToFirestore(compressed).catch((err) => console.warn('Cloud sync notice:', err));
+          }).catch(() => {});
+          saveSiteLogoToFirestore(compressed, {
+            fileName: file.name,
+            fileSize: file.size,
+            contentType: file.type,
+            updatedBy: currentUser?.email || ADMIN_EMAIL,
+          }).catch(() => {});
           setLogoSaveNotice(true);
           setTimeout(() => setLogoSaveNotice(false), 3000);
-        } else {
-          setCurrentLogo(rawDataUrl);
-          if (onUpdateSiteLogo) {
-            onUpdateSiteLogo(rawDataUrl);
-          }
-          try {
-            localStorage.setItem('ecom360_site_logo', rawDataUrl);
-          } catch {}
-          fetch('/api/save-logo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ siteLogo: rawDataUrl }),
-          }).catch((err) => console.warn('API save-logo notice:', err));
-          saveSiteLogoToFirestore(rawDataUrl).catch((err) => console.warn('Cloud sync notice:', err));
-          setLogoSaveNotice(true);
-          setTimeout(() => setLogoSaveNotice(false), 3000);
-        }
-        setIsProcessingLogo(false);
+          setIsProcessingLogo(false);
+        };
+        img.onerror = () => {
+          setLogoError('ছবিটি লোড করতে সমস্যা হয়েছে। অন্য একটি ছবি নির্বাচন করুন।');
+          setIsProcessingLogo(false);
+        };
+        img.src = rawDataUrl;
       };
-      img.onerror = () => {
-        setLogoError('ছবিটি লোড করতে সমস্যা হয়েছে। অন্য একটি ছবি নির্বাচন করুন।');
-        setIsProcessingLogo(false);
-      };
-      img.src = rawDataUrl;
-    };
-    reader.readAsDataURL(file);
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleApplyUrlLogo = () => {
@@ -246,7 +270,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setLogoError(null);
     setIsProcessingLogo(true);
     const testImg = new Image();
-    testImg.onload = () => {
+    testImg.onload = async () => {
       const url = logoUrlInput.trim();
       setCurrentLogo(url);
       setUploadedDimensions({ width: testImg.width, height: testImg.height });
@@ -261,7 +285,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ siteLogo: url }),
       }).catch((err) => console.warn('API save-logo notice:', err));
-      saveSiteLogoToFirestore(url).catch((err) => console.warn('Cloud sync notice:', err));
+      await saveSiteLogoToFirestore(url, {
+        updatedBy: currentUser?.email || ADMIN_EMAIL,
+      }).catch((err) => console.warn('Cloud sync notice:', err));
       setLogoSaveNotice(true);
       setTimeout(() => setLogoSaveNotice(false), 3000);
       setIsProcessingLogo(false);
@@ -300,7 +326,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         body: JSON.stringify({ siteLogo: currentLogo }),
       }).catch((e) => console.warn('API save-logo notice:', e));
 
-      await saveSiteLogoToFirestore(currentLogo);
+      await saveSiteLogoToFirestore(currentLogo, {
+        updatedBy: currentUser?.email || ADMIN_EMAIL,
+      });
       setLogoSaveNotice(true);
       setTimeout(() => setLogoSaveNotice(false), 3000);
     } catch (err: any) {

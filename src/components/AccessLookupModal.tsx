@@ -3,6 +3,7 @@ import { X, Search, Phone, Key, ShieldCheck, AlertCircle, ArrowRight, Clock, Ale
 import { Order, CustomerSession } from '../types';
 import { BOOK_DETAILS } from '../data/bookData';
 import { bookCoverImg } from '../assets/images';
+import { SiteLogo } from './SiteLogo';
 
 interface AccessLookupModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface AccessLookupModalProps {
   onAccessGranted: (session: CustomerSession) => void;
   orders: Order[];
   onOpenCheckout?: () => void;
+  siteLogo?: string;
 }
 
 export const AccessLookupModal: React.FC<AccessLookupModalProps> = ({
@@ -18,6 +20,7 @@ export const AccessLookupModal: React.FC<AccessLookupModalProps> = ({
   onAccessGranted,
   orders,
   onOpenCheckout,
+  siteLogo,
 }) => {
   const [lookupQuery, setLookupQuery] = useState('');
   const [error, setError] = useState('');
@@ -108,6 +111,10 @@ export const AccessLookupModal: React.FC<AccessLookupModalProps> = ({
 
         {/* Body */}
         <form onSubmit={handleLookup} className="p-5 sm:p-6 space-y-4">
+          <div className="flex justify-center pb-1">
+            <SiteLogo siteLogo={siteLogo} variant="modal" />
+          </div>
+
           <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center gap-3">
             <img 
               src={bookCoverImg} 

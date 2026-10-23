@@ -24,11 +24,14 @@ import {
   resetUserPassword 
 } from '../lib/firebase';
 
+import { SiteLogo } from './SiteLogo';
+
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: AuthModalMode;
   onAuthSuccess: (user: UserProfile) => void;
+  siteLogo?: string;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -36,6 +39,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   initialMode = 'login',
   onAuthSuccess,
+  siteLogo,
 }) => {
   const [mode, setMode] = useState<AuthModalMode>(initialMode);
   
@@ -204,13 +208,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Header */}
         <div className="text-center mb-5">
-          <div className="inline-flex p-3 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 mb-3">
-            {mode === 'login' && <LogIn className="w-6 h-6" />}
-            {mode === 'signup' && <UserPlus className="w-6 h-6" />}
-            {mode === 'forgot' && <KeyRound className="w-6 h-6" />}
+          <div className="flex justify-center mb-3">
+            <SiteLogo siteLogo={siteLogo} variant="modal" />
           </div>
           
-          <h3 className="text-2xl font-black tracking-tight text-white">
+          <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">
             {mode === 'login' && 'একাউন্টে লগইন করুন'}
             {mode === 'signup' && 'নতুন একাউন্ট খুলুন'}
             {mode === 'forgot' && 'পাসওয়ার্ড রিসেট করুন'}

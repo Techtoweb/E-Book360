@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { BOOK_DETAILS } from '../data/bookData';
 import { UserProfile, AuthModalMode } from '../types';
+import { SiteLogo } from './SiteLogo';
 
 interface NavbarProps {
   currentUser: UserProfile | null;
@@ -69,34 +70,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4">
         {/* Brand Logo - Uniform size container regardless of original image resolution */}
-        <div 
-          className="flex items-center h-12 sm:h-14 max-w-[200px] sm:max-w-[280px] cursor-pointer shrink-0 overflow-hidden" 
+        <SiteLogo 
+          siteLogo={siteLogo}
+          variant="header"
+          containerClassName="h-12 sm:h-14 max-w-[200px] sm:max-w-[280px] overflow-hidden"
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          title="Website Logo"
-        >
-          {siteLogo ? (
-            <img 
-              src={siteLogo} 
-              alt="Website Logo" 
-              className="h-10 sm:h-12 max-h-10 sm:max-h-12 w-auto max-w-full object-contain object-left drop-shadow-md hover:scale-105 transition-transform duration-200"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="flex items-center gap-2 select-none group">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center text-white font-black text-sm sm:text-base shadow-lg shadow-blue-500/25 group-hover:scale-105 transition-transform">
-                360°
-              </div>
-              <div className="flex flex-col">
-                <span className="font-black text-white text-sm sm:text-base tracking-tight leading-tight group-hover:text-blue-400 transition-colors">
-                  E-Commerce 360°
-                </span>
-                <span className="text-[9px] sm:text-[10px] text-blue-400 font-semibold tracking-wider uppercase">
-                  Official Store
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
+        />
 
         {/* Action Buttons */}
         <div className="flex items-center gap-1.5 sm:gap-3">

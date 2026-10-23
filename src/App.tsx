@@ -45,7 +45,8 @@ import {
   saveSiteLogoToFirestore,
   getSiteLogoFromFirestore,
   subscribeToSiteLogo,
-  subscribeToPermissionIssues
+  subscribeToPermissionIssues,
+  updateBrowserFavicon
 } from './lib/firebase';
 import { playNewOrderSound, showOrderDesktopNotification } from './lib/notificationSound';
 import { defaultSiteLogo } from './assets/siteLogo';
@@ -240,6 +241,11 @@ export default function App() {
     };
   }, [notificationSettings.soundEnabled, notificationSettings.soundVolume, notificationSettings.browserNotificationEnabled]);
 
+  // Sync browser favicon reactively whenever site logo updates
+  useEffect(() => {
+    updateBrowserFavicon(siteLogo);
+  }, [siteLogo]);
+
   // Tab title alert flashing when pending orders exist
   useEffect(() => {
     const pendingCount = orders.filter((o) => o.status === 'pending').length;
@@ -248,16 +254,16 @@ export default function App() {
       const interval = setInterval(() => {
         document.title = isAlt
           ? `(${pendingCount}) 🔔 নতুন অর্ডার এসেছে!`
-          : `DSTYPE - E-Commerce 360`;
+          : `E-Commerce 360° | বই ও ডিজিটাল বিজনেস গাইড`;
         isAlt = !isAlt;
       }, 1500);
 
       return () => {
         clearInterval(interval);
-        document.title = 'DSTYPE - E-Commerce 360';
+        document.title = 'E-Commerce 360° | বই ও ডিজিটাল বিজনেস গাইড';
       };
     } else {
-      document.title = 'DSTYPE - E-Commerce 360';
+      document.title = 'E-Commerce 360° | বই ও ডিজিটাল বিজনেস গাইড';
     }
   }, [orders, notificationSettings.flashingTabTitle]);
 
@@ -619,6 +625,7 @@ export default function App() {
         coupons={coupons}
         allOrders={orders}
         currentUser={currentUser}
+        siteLogo={siteLogo}
       />
 
       {/* Authentication Modal (Login, Signup, Forgot Password) */}
@@ -627,6 +634,7 @@ export default function App() {
         onClose={() => setIsAuthOpen(false)}
         initialMode={authMode}
         onAuthSuccess={handleAuthSuccess}
+        siteLogo={siteLogo}
       />
 
       {/* Protected Online DRM Reader Modal */}
@@ -644,6 +652,7 @@ export default function App() {
         onAccessGranted={handleAccessGranted}
         orders={orders}
         onOpenCheckout={() => setIsCheckoutOpen(true)}
+        siteLogo={siteLogo}
       />
 
       {/* Free Sample Chapter Preview Modal */}

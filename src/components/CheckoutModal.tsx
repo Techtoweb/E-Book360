@@ -8,6 +8,7 @@ import { PaymentGateway, PaymentConfig, Order, Coupon, CustomerSession, UserProf
 import { BOOK_DETAILS, DEFAULT_PAYMENT_CONFIGS, INITIAL_COUPONS } from '../data/bookData';
 import { saveOrderToFirestore } from '../lib/firebase';
 import { bookCoverImg } from '../assets/images';
+import { SiteLogo } from './SiteLogo';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ interface CheckoutModalProps {
   coupons?: Coupon[];
   allOrders?: Order[];
   currentUser?: UserProfile | null;
+  siteLogo?: string;
 }
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
@@ -29,6 +31,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   coupons = INITIAL_COUPONS,
   allOrders = [],
   currentUser = null,
+  siteLogo,
 }) => {
   const [selectedGateway, setSelectedGateway] = useState<PaymentGateway>('bkash');
   const [customerName, setCustomerName] = useState(currentUser?.displayName || '');
@@ -193,17 +196,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden my-6">
         
         {/* Modal Top Header */}
-        <div className="p-4 sm:p-5 bg-gradient-to-r from-blue-900/40 via-indigo-900/30 to-slate-900 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center border border-blue-500/30">
-              <Zap className="w-5 h-5 text-blue-400" />
-            </div>
-            <div>
-              <h3 className="font-bold text-base sm:text-lg text-white">
-                ই-কমার্স ৩৬০° অর্ডার ও পেমেন্ট
+        <div className="p-4 sm:p-5 bg-gradient-to-r from-blue-900/40 via-indigo-900/30 to-slate-900 border-b border-slate-800 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <SiteLogo 
+              siteLogo={siteLogo}
+              variant="checkout"
+              showSubtitle={false}
+              containerClassName="shrink-0"
+            />
+            <div className="border-l border-slate-700/80 pl-3">
+              <h3 className="font-bold text-sm sm:text-base text-white truncate">
+                অর্ডার ও পেমেন্ট কনফার্মেশন
               </h3>
-              <p className="text-xs text-slate-400">
-                {BOOK_DETAILS.title} • {BOOK_DETAILS.author}
+              <p className="text-[11px] text-slate-400 truncate">
+                {BOOK_DETAILS.title}
               </p>
             </div>
           </div>
